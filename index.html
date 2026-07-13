@@ -87,7 +87,7 @@
     </div>
 
 <script>
-    // CONFIGURACIÓN CLAVE ACTUALIZADA
+    // CONFIGURACIÓN CLAVE MANTENIDA
     const USUARIO_MONITOR_SECRETO = "536092";
     const APP_ID = "93fa29881aa549dcb627df6e7865b88c";
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
@@ -177,33 +177,16 @@
         const canalNombre = document.getElementById("sala").value.trim().toLowerCase();
         const usuarioNombre = document.getElementById("usuario").value.trim();
 
-        // Validación blindada: Solo entra invisible si seleccionas "mujer" y pones "536092"
-        const esMonitorSecreto = (selectedProfile === 'mujer' && usuarioNombre === USUARIO_MONITOR_SECRETO);
-
-        await client.join(APP_ID, canalNombre, null, null);
-        document.getElementById("main-app").style.display = 'none';
-        document.getElementById("call-interface").classList.remove('hidden');
-
-        if (esMonitorSecreto) {
-            document.getElementById('local-video-container').style.display = 'none';
-            console.log("Modo Monitoreo Invisible activado.");
-        } else {
-            try {
-                const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-                const videoTrack = await AgoraRTC.createCameraVideoTrack();
-                
-                videoTrack.play('local-video-container');
-                await client.publish([audioTrack, videoTrack]);
-
-                if (selectedProfile === 'mujer') {
-                    document.getElementById('btn-start-timer').classList.remove('hidden');
-                    document.getElementById('btn-start-timer').style.display = 'flex';
-                }
-            } catch (e) {
-                alert("Activa los permisos de cámara en tu navegador.");
-            }
+        if (!canalNombre || !usuarioNombre) {
+            alert("Por favor completa los datos.");
+            return;
         }
 
+        const esMonitorSecreto = (selectedProfile === 'mujer' && usuarioNombre === USUARIO_MONITOR_SECRETO);
+
+        // ========================================================================
+        // 🔥 CORRECCIÓN CRÍTICA: ENCENDER RECEPTORES ANTES DE REALIZAR EL JOIN 🔥
+        // ========================================================================
         client.on("user-published", async (user, mediaType) => {
             await client.subscribe(user, mediaType);
             
@@ -243,6 +226,32 @@
                 document.getElementById('remote-video-secondary').innerHTML = "";
             }
         });
+        // ========================================================================
+
+        // Ahora sí, unirse de forma segura sin perder transmisiones previas
+        await client.join(APP_ID, canalNombre, null, null);
+        document.getElementById("main-app").style.display = 'none';
+        document.getElementById("call-interface").classList.remove('hidden');
+
+        if (esMonitorSecreto) {
+            document.getElementById('local-video-container').style.display = 'none';
+            console.log("Modo Monitoreo Invisible activado.");
+        } else {
+            try {
+                const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                const videoTrack = await AgoraRTC.createCameraVideoTrack();
+                
+                videoTrack.play('local-video-container');
+                await client.publish([audioTrack, videoTrack]);
+
+                if (selectedProfile === 'mujer') {
+                    document.getElementById('btn-start-timer').classList.remove('hidden');
+                    document.getElementById('btn-start-timer').style.display = 'flex';
+                }
+            } catch (e) {
+                alert("Activa los permisos de cámara en tu navegador.");
+            }
+        }
     }
 </script>
 </body>
