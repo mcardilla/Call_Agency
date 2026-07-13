@@ -6,28 +6,90 @@
     <title>Bridge Call - Sistema Privado</title>
     <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: white; margin: 0; padding: 15px; text-align: center; }
-        .setup-box { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-top: 50px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; font-size: 16px; }
-        input, select { background: #333; color: white; }
-        button { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
-        button:hover { background: #0056b3; }
-        .grid-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 20px; }
-        .video-container { background: #000; height: 220px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #333; }
-        .nombre-usuario { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px; z-index: 10; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #121212 !important; 
+            color: #ffffff !important; 
+            margin: 0; 
+            padding: 20px; 
+            text-align: center; 
+        }
+        .setup-box { 
+            background-color: #1e1e1e !important; 
+            padding: 30px 20px; 
+            border-radius: 12px; 
+            margin: 30px auto; 
+            max-width: 400px;
+            border: 1px solid #333;
+            display: block !important;
+        }
+        input, select, button { 
+            width: 100%; 
+            padding: 14px; 
+            margin: 12px 0; 
+            border-radius: 8px; 
+            border: 1px solid #444; 
+            box-sizing: border-box; 
+            font-size: 16px; 
+            display: block !important;
+        }
+        input, select { 
+            background-color: #2a2a2a !important; 
+            color: #ffffff !important; 
+        }
+        button { 
+            background-color: #007bff !important; 
+            color: #ffffff !important; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border: none;
+        }
+        button:hover { 
+            background-color: #0056b3 !important; 
+        }
+        .grid-videos { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); 
+            gap: 10px; 
+            margin-top: 20px; 
+        }
+        .video-container { 
+            background: #000; 
+            height: 220px; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            position: relative; 
+            border: 1px solid #333; 
+        }
+        .nombre-usuario { 
+            position: absolute; 
+            bottom: 8px; 
+            left: 8px; 
+            background: rgba(0,0,0,0.6); 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            z-index: 10; 
+        }
     </style>
 </head>
 <body>
 
-    <h2>Bridge Call System</h2>
+    <h2 style="margin-top: 20px;">Bridge Call System</h2>
 
     <div id="formulario" class="setup-box">
-        <input type="text" id="sala" placeholder="Nombre de la Sala (ej: sala1)" value="sala1">
-        <input type="text" id="usuario" placeholder="Tu Nombre">
+        <label style="display:block; text-align:left; margin-bottom:5px; font-size:14px; color:#aaa;">Nombre de la sala:</label>
+        <input type="text" id="sala" placeholder="Ej: sala1" value="sala1">
+        
+        <label style="display:block; text-align:left; margin-bottom:5px; font-size:14px; color:#aaa;">Tu nombre de usuario:</label>
+        <input type="text" id="usuario" placeholder="Escribe tu nombre aquí">
+        
+        <label style="display:block; text-align:left; margin-bottom:5px; font-size:14px; color:#aaa;">Selecciona tu rol:</label>
         <select id="rol">
             <option value="invitado">Soy Invitado (Transmitir Video)</option>
             <option value="fantasma">Soy Administrador (Modo Fantasma)</option>
         </select>
+        
         <button onclick="entrarALallamada()">Entrar a la Videollamada</button>
     </div>
 
@@ -48,25 +110,35 @@
             return;
         }
 
-        document.getElementById("formulario").style.display = "none";
-        document.getElementById("grilla-videos").style.display = "grid";
-
-        await client.join(APP_ID, canalNombre, null, usuarioNombre);
-
-        if (rolSeleccionado === "fantasma") {
-            console.log("Modo Fantasma Activo.");
-        } else {
-            canalesLocales.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-            canalesLocales.videoTrack = await AgoraRTC.createCameraVideoTrack();
-
-            const miContenedor = document.createElement("div");
-            miContenedor.id = usuarioNombre;
-            miContenedor.className = "video-container";
-            miContenedor.innerHTML = `<div class="nombre-usuario">${usuarioNombre} (Tú)</div>`;
-            document.getElementById("grilla-videos").appendChild(miContenedor);
+        try {
+            // Intentamos conectarnos a Agora. Pasamos null en el ID para evitar fallos de texto en móviles.
+            await client.join(APP_ID, canalNombre, null, null);
             
-            canalesLocales.videoTrack.play(miContenedor);
-            await client.publish([canalesLocales.audioTrack, canalesLocales.videoTrack]);
+            // Si conecta bien, hacemos el cambio de pantalla
+            document.getElementById("formulario").style.display = "none";
+            document.getElementById("grilla-videos").style.display = "grid";
+
+            if (rolSeleccionado === "fantasma") {
+                alert("👻 Modo Fantasma Activo. Estás dentro de la sala de forma invisible.");
+            } else {
+                try {
+                    canalesLocales.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                    canalesLocales.videoTrack = await AgoraRTC.createCameraVideoTrack();
+
+                    const miContenedor = document.createElement("div");
+                    miContenedor.id = "local-user-container";
+                    miContenedor.className = "video-container";
+                    miContenedor.innerHTML = `<div class="nombre-usuario">${usuarioNombre} (Tú)</div>`;
+                    document.getElementById("grilla-videos").appendChild(miContenedor);
+                    
+                    canalesLocales.videoTrack.play(miContenedor);
+                    await client.publish([canalesLocales.audioTrack, canalesLocales.videoTrack]);
+                } catch (mediaError) {
+                    alert("⚠️ ERROR DE CÁMARA O MICRÓFONO:\n\n" + mediaError.message + "\n\nPor favor, asegúrate de presionar 'Permitir' cuando el navegador te pida usar la cámara.");
+                }
+            }
+        } catch (error) {
+            alert("❌ ERROR DE CONEXIÓN AGORA:\n\n" + error.message + "\n\nEsto ocurre si el App ID está mal copiado o si tu proyecto de Agora exige un Token obligatorio.");
         }
 
         client.on("user-published", async (user, mediaType) => {
@@ -78,7 +150,7 @@
                     contenedorRemoto = document.createElement("div");
                     contenedorRemoto.id = user.uid;
                     contenedorRemoto.className = "video-container";
-                    contenedorRemoto.innerHTML = `<div class="nombre-usuario">${user.uid}</div>`;
+                    contenedorRemoto.innerHTML = `<div class="nombre-usuario">Usuario Conectado</div>`;
                     document.getElementById("grilla-videos").appendChild(contenedorRemoto);
                 }
                 user.videoTrack.play(contenedorRemoto);
