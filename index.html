@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bridge Call - Sistema Privado</title>
+    <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.0.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: white; margin: 0; padding: 15px; text-align: center; }
+        .setup-box { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-top: 50px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; font-size: 16px; }
+        input, select { background: #333; color: white; }
+        button { background: #007bff; color: white; font-weight: bold; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .grid-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 20px; }
+        .video-container { background: #000; height: 220px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #333; }
+        .nombre-usuario { position: absolute; bottom: 8px; left: 8px; background: rgba(0,0,0,0.6); padding: 2px 6px; border-radius: 4px; font-size: 12px; z-index: 10; }
+    </style>
+</head>
+<body>
+
+    <h2>Bridge Call System</h2>
+
+    <div id="formulario" class="setup-box">
+        <input type="text" id="sala" placeholder="Nombre de la Sala (ej: sala1)" value="sala1">
+        <input type="text" id="usuario" placeholder="Tu Nombre">
+        <select id="rol">
+            <option value="invitado">Soy Invitado (Transmitir Video)</option>
+            <option value="fantasma">Soy Administrador (Modo Fantasma)</option>
+        </select>
+        <button onclick="entrarALallamada()">Entrar a la Videollamada</button>
+    </div>
+
+    <div id="grilla-videos" class="grid-videos" style="display: none;"></div>
+
+<script>
+    const APP_ID = "B900d72315c5422d8ca5ced3d60e94d1"; 
+    const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+    let canalesLocales = { videoTrack: null, audioTrack: null };
+
+    async function entrarALallamada() {
+        const canalNombre = document.getElementById("sala").value.trim().toLowerCase();
+        const usuarioNombre = document.getElementById("usuario").value.trim();
+        const rolSeleccionado = document.getElementById("rol").value;
+
+        if (!canalNombre || !usuarioNombre) {
+            alert("Por favor introduce tu nombre y el de la sala.");
+            return;
+        }
+
+        document.getElementById("formulario").style.display = "none";
+        document.getElementById("grilla-videos").style.display = "grid";
+
+        await client.join(APP_ID, canalNombre, null, usuarioNombre);
+
+        if (rolSeleccionado === "fantasma") {
+            console.log("Modo Fantasma Activo.");
+        } else {
+            canalesLocales.audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+            canalesLocales.videoTrack = await AgoraRTC.createCameraVideoTrack();
+
+            const miContenedor = document.createElement("div");
+            miContenedor.id = usuarioNombre;
+            miContenedor.className = "video-container";
+            miContenedor.innerHTML = `<div class="nombre-usuario">${usuarioNombre} (Tú)</div>`;
+            document.getElementById("grilla-videos").appendChild(miContenedor);
+            
+            canalesLocales.videoTrack.play(miContenedor);
+            await client.publish([canalesLocales.audioTrack, canalesLocales.videoTrack]);
+        }
+
+        client.on("user-published", async (user, mediaType) => {
+            await client.subscribe(user, mediaType);
+
+            if (mediaType === "video") {
+                let contenedorRemoto = document.getElementById(user.uid);
+                if (!contenedorRemoto) {
+                    contenedorRemoto = document.createElement("div");
+                    contenedorRemoto.id = user.uid;
+                    contenedorRemoto.className = "video-container";
+                    contenedorRemoto.innerHTML = `<div class="nombre-usuario">${user.uid}</div>`;
+                    document.getElementById("grilla-videos").appendChild(contenedorRemoto);
+                }
+                user.videoTrack.play(contenedorRemoto);
+            }
+
+            if (mediaType === "audio") {
+                user.audioTrack.play();
+            }
+        });
+
+        const removerUsuario = (user) => {
+            const contenedor = document.getElementById(user.uid);
+            if (contenedor) contenedor.remove();
+        };
+        client.on("user-unordered", removerUsuario);
+        client.on("user-left", removerUsuario);
+    }
+</script>
+</body>
+</html>
